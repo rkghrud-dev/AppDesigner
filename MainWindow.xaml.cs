@@ -26,6 +26,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly ObservableCollection<DesignElement> _emptyElements = new();
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = true };
     private readonly Dictionary<DesignElement, ElementBounds> _startBounds = new();
+    private readonly List<ElementFile> _copiedElements = [];
+    private readonly Stack<string> _undoHistory = new();
+    private readonly Stack<string> _redoHistory = new();
 
     private BoardDocument? _selectedBoard;
     private DesignElement? _selectedElement;
@@ -36,8 +39,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private InteractionMode _interactionMode = InteractionMode.None;
     private ResizeHandle _resizeHandle = ResizeHandle.None;
     private ImageSource? _currentReferenceImage;
+    private string? _interactionSnapshot;
     private string _statusText = "보드가 준비되었습니다.";
     private bool _showGrid = true;
+    private int _pasteSequence;
     private bool _snapToGrid = true;
     private bool _showGuides = true;
 
@@ -168,6 +173,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public bool HasSelection => SelectedCount > 0;
 
     public bool CanEditSingleElement => SelectedCount == 1;
+
+    public bool CanPasteSelection => _copiedElements.Count > 0;
+
+    public bool CanUndo => _undoHistory.Count > 0;
+
+    public bool CanRedo => _redoHistory.Count > 0;
 
     public bool HasNoSelection => SelectedCount == 0;
 
@@ -324,23 +335,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void PaletteComponent_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedBoard is null)
-        {
-            StatusText = "보드를 먼저 만든 뒤 구성요소를 추가하세요.";
-            return;
-        }
-
         if (sender is not FrameworkElement { DataContext: UiComponentItem item })
         {
             return;
         }
 
         SetSelectedPaletteItem(item);
-
-        var designElement = CreateElementForCurrentBoard(item.Key);
-        SelectedBoard.Elements.Add(designElement);
-        AssignMarkerTexts(SelectedBoard.Elements);
-        SelectOnly(designElement, $"{designElement.MarkerText} {designElement.ElementType}을(를) 추가했습니다.");
+        AddElementToCurrentBoard(item.Key);
     }
 
     private void SetSelectedPaletteItem(UiComponentItem? item)
@@ -617,6 +618,411 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         return element;
     }
 
+    private bool AddElementToCurrentBoard(string kind)
+    {
+        if (SelectedBoard is null)
+        {
+            StatusText = "보드를 먼저 만든 뒤 구성요소를 추가하세요.";
+            return false;
+        }
+
+        RememberUndoState();
+        var designElement = CreateElementForCurrentBoard(kind);
+        SelectedBoard.Elements.Add(designElement);
+        AssignMarkerTexts(SelectedBoard.Elements);
+        SelectOnly(designElement, $"{designElement.MarkerText} {designElement.ElementType}을(를) 추가했습니다.");
+        return true;
+    }
+
+    private bool CopySelectedElementsToBuffer()
+    {
+        if (SelectedCount == 0)
+        {
+            StatusText = "복사할 항목을 먼저 선택하세요.";
+            return false;
+        }
+
+        _copiedElements.Clear();
+        _copiedElements.AddRange(CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex).Select(CreateElementFile));
+        _pasteSequence = 0;
+        OnPropertyChanged(nameof(CanPasteSelection));
+        StatusText = $"{_copiedElements.Count}개 항목을 복사했습니다.";
+        return true;
+    }
+
+    private bool PasteCopiedElements()
+    {
+        if (SelectedBoard is null)
+        {
+            StatusText = "붙여넣을 보드를 먼저 선택하세요.";
+            return false;
+        }
+
+        if (_copiedElements.Count == 0)
+        {
+            StatusText = "복사한 항목이 없습니다.";
+            return false;
+        }
+
+        RememberUndoState();
+
+        var offset = 40 + (_pasteSequence * 28);
+        var pastedItems = new List<DesignElement>();
+        var zIndex = CurrentElements.Count == 0 ? 1 : CurrentElements.Max(item => item.ZIndex) + 1;
+
+        foreach (var item in CurrentElements)
+        {
+            item.IsSelected = false;
+        }
+
+        foreach (var file in _copiedElements)
+        {
+            var pastedItem = CreateElementFromFile(file, false);
+            pastedItem.Title = CreateCopyTitle(file.Title);
+            pastedItem.Left = Clamp(file.Left + offset, 0, BoardWidth - pastedItem.Width);
+            pastedItem.Top = Clamp(file.Top + offset, 0, BoardHeight - pastedItem.Height);
+            pastedItem.ZIndex = zIndex++;
+            pastedItem.IsSelected = true;
+            SelectedBoard.Elements.Add(pastedItem);
+            pastedItems.Add(pastedItem);
+        }
+
+        _pasteSequence++;
+        AssignMarkerTexts(SelectedBoard.Elements);
+        SelectedElement = pastedItems.LastOrDefault();
+        UpdateSelectionProperties($"{pastedItems.Count}개 항목을 붙여넣었습니다.");
+        return true;
+    }
+
+    private bool DuplicateSelectedElements()
+    {
+        if (SelectedBoard is null || SelectedCount == 0)
+        {
+            StatusText = "복제할 항목을 먼저 선택하세요.";
+            return false;
+        }
+
+        RememberUndoState();
+        var clones = CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex).Select(item => item.CloneWithOffset(32)).ToList();
+        var zIndex = CurrentElements.Count == 0 ? 1 : CurrentElements.Max(item => item.ZIndex) + 1;
+        foreach (var clone in clones)
+        {
+            clone.ZIndex = zIndex++;
+            SelectedBoard.Elements.Add(clone);
+        }
+
+        AssignMarkerTexts(SelectedBoard.Elements);
+        foreach (var item in CurrentElements)
+        {
+            item.IsSelected = false;
+        }
+        foreach (var clone in clones)
+        {
+            clone.IsSelected = true;
+        }
+
+        SelectedElement = clones.LastOrDefault();
+        UpdateSelectionProperties($"{clones.Count}개 항목을 복제했습니다.");
+        return true;
+    }
+
+    private bool DeleteSelectedElements()
+    {
+        if (SelectedBoard is null || SelectedCount == 0)
+        {
+            StatusText = "삭제할 항목을 먼저 선택하세요.";
+            return false;
+        }
+
+        RememberUndoState();
+        var targets = CurrentElements.Where(item => item.IsSelected).ToList();
+        foreach (var item in targets)
+        {
+            SelectedBoard.Elements.Remove(item);
+        }
+
+        AssignMarkerTexts(SelectedBoard.Elements);
+        SelectOnly(null, $"{targets.Count}개 항목을 삭제했습니다.");
+        return true;
+    }
+
+    private bool BringSelectionToFront()
+    {
+        if (SelectedCount == 0)
+        {
+            StatusText = "정렬할 항목을 먼저 선택하세요.";
+            return false;
+        }
+
+        RememberUndoState();
+        var zIndex = CurrentElements.Max(item => item.ZIndex) + 1;
+        foreach (var item in CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex))
+        {
+            item.ZIndex = zIndex++;
+        }
+
+        StatusText = "선택 항목을 앞으로 보냈습니다.";
+        return true;
+    }
+
+    private bool SendSelectionToBack()
+    {
+        if (SelectedCount == 0)
+        {
+            StatusText = "정렬할 항목을 먼저 선택하세요.";
+            return false;
+        }
+
+        RememberUndoState();
+        var selected = CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex).ToList();
+        var zIndex = CurrentElements.Min(item => item.ZIndex) - selected.Count;
+        foreach (var item in selected)
+        {
+            item.ZIndex = zIndex++;
+        }
+
+        StatusText = "선택 항목을 뒤로 보냈습니다.";
+        return true;
+    }
+
+    private void CopySelection_OnClick(object sender, RoutedEventArgs e) => CopySelectedElementsToBuffer();
+
+    private void PasteSelection_OnClick(object sender, RoutedEventArgs e) => PasteCopiedElements();
+
+    private void Undo_OnClick(object sender, RoutedEventArgs e) => UndoLastChange();
+
+    private void Redo_OnClick(object sender, RoutedEventArgs e) => RedoLastUndo();
+
+    private void Window_OnPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        if (IsTextInputFocused())
+        {
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.None && e.Key == Key.Delete)
+        {
+            e.Handled = DeleteSelectedElements();
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.C)
+        {
+            e.Handled = CopySelectedElementsToBuffer();
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.V)
+        {
+            e.Handled = PasteCopiedElements();
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.D)
+        {
+            e.Handled = DuplicateSelectedElements();
+            return;
+        }
+
+        if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Z)
+        {
+            e.Handled = UndoLastChange();
+            return;
+        }
+
+        if ((Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.Y) || (Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift) && e.Key == Key.Z))
+        {
+            e.Handled = RedoLastUndo();
+        }
+    }
+
+    private void DesignItem_OnPreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element || element.DataContext is not DesignElement item || SelectedBoard is null)
+        {
+            return;
+        }
+
+        if (!item.IsSelected)
+        {
+            SelectOnly(item, $"{item.MarkerText} 선택됨");
+        }
+        else
+        {
+            SelectedElement = item;
+            UpdateSelectionProperties($"{item.MarkerText} 선택됨");
+        }
+    }
+
+    private bool UndoLastChange()
+    {
+        if (_undoHistory.Count == 0)
+        {
+            StatusText = "되돌릴 작업이 없습니다.";
+            return false;
+        }
+
+        var currentSnapshot = CaptureWorkspaceSnapshot();
+        var snapshot = _undoHistory.Pop();
+        _redoHistory.Push(currentSnapshot);
+        ApplyWorkspaceSnapshot(snapshot, "되돌리기를 적용했습니다.");
+        RaiseHistoryAvailabilityChanged();
+        return true;
+    }
+
+    private bool RedoLastUndo()
+    {
+        if (_redoHistory.Count == 0)
+        {
+            StatusText = "다시 적용할 작업이 없습니다.";
+            return false;
+        }
+
+        var currentSnapshot = CaptureWorkspaceSnapshot();
+        var snapshot = _redoHistory.Pop();
+        _undoHistory.Push(currentSnapshot);
+        ApplyWorkspaceSnapshot(snapshot, "다시하기를 적용했습니다.");
+        RaiseHistoryAvailabilityChanged();
+        return true;
+    }
+
+    private void RememberUndoState()
+    {
+        PushUndoSnapshot(CaptureWorkspaceSnapshot());
+    }
+
+    private void PushUndoSnapshot(string snapshot)
+    {
+        if (_undoHistory.Count > 0 && string.Equals(_undoHistory.Peek(), snapshot, StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        _undoHistory.Push(snapshot);
+        _redoHistory.Clear();
+        RaiseHistoryAvailabilityChanged();
+    }
+
+    private void RaiseHistoryAvailabilityChanged()
+    {
+        OnPropertyChanged(nameof(CanUndo));
+        OnPropertyChanged(nameof(CanRedo));
+    }
+
+    private string CaptureWorkspaceSnapshot() => JsonSerializer.Serialize(CreateWorkspaceFile(), _jsonOptions);
+
+    private void ApplyWorkspaceSnapshot(string snapshot, string statusMessage)
+    {
+        var file = JsonSerializer.Deserialize<WorkspaceFile>(snapshot, _jsonOptions);
+        if (file is null || file.Boards.Count == 0)
+        {
+            return;
+        }
+
+        ApplyWorkspaceFile(file, statusMessage);
+    }
+
+    private WorkspaceFile CreateWorkspaceFile()
+    {
+        return new WorkspaceFile
+        {
+            SelectedIndex = SelectedBoard is null ? 0 : Boards.IndexOf(SelectedBoard),
+            Boards = Boards.Select(CreateBoardFile).ToList(),
+        };
+    }
+
+    private BoardFile CreateBoardFile(BoardDocument board)
+    {
+        return new BoardFile
+        {
+            Title = board.Title,
+            BoardKind = board.BoardKind,
+            ReferenceImageBase64 = board.ReferenceImageBase64,
+            Elements = board.Elements.Select(CreateElementFile).ToList(),
+        };
+    }
+
+    private ElementFile CreateElementFile(DesignElement item)
+    {
+        return new ElementFile
+        {
+            Kind = item.KindKey,
+            Title = item.Title,
+            Description = item.Description,
+            Left = item.Left,
+            Top = item.Top,
+            Width = item.Width,
+            Height = item.Height,
+            ZIndex = item.ZIndex,
+            IsSelected = item.IsSelected,
+        };
+    }
+
+    private DesignElement CreateElementFromFile(ElementFile elementFile, bool preserveSelection = true)
+    {
+        var item = CreateStyledElement(elementFile.Kind);
+        item.Title = elementFile.Title;
+        item.Description = elementFile.Description;
+        item.Left = elementFile.Left;
+        item.Top = elementFile.Top;
+        item.Width = elementFile.Width;
+        item.Height = elementFile.Height;
+        item.ZIndex = elementFile.ZIndex;
+        item.IsSelected = preserveSelection && elementFile.IsSelected;
+        return item;
+    }
+
+    private void ApplyWorkspaceFile(WorkspaceFile file, string statusMessage)
+    {
+        _interactionSnapshot = null;
+        Boards.Clear();
+        foreach (var boardFile in file.Boards)
+        {
+            var board = new BoardDocument
+            {
+                Title = boardFile.Title,
+                BoardKind = boardFile.BoardKind,
+                ReferenceImageBase64 = boardFile.ReferenceImageBase64,
+            };
+
+            foreach (var elementFile in boardFile.Elements)
+            {
+                board.Elements.Add(CreateElementFromFile(elementFile));
+            }
+
+            AssignMarkerTexts(board.Elements);
+            Boards.Add(board);
+        }
+
+        SelectedBoard = Boards[Math.Clamp(file.SelectedIndex, 0, Boards.Count - 1)];
+        SelectedElement = SelectedBoard?.Elements.LastOrDefault(item => item.IsSelected);
+        UpdateSelectionProperties(statusMessage);
+    }
+
+    private static string CreateCopyTitle(string title)
+    {
+        return title.EndsWith(" 복사본", StringComparison.Ordinal) ? title : $"{title} 복사본";
+    }
+
+    private static bool IsTextInputFocused()
+    {
+        if (Keyboard.FocusedElement is not DependencyObject current)
+        {
+            return false;
+        }
+
+        while (current is not null)
+        {
+            if (current is TextBox or PasswordBox or ComboBox or RichTextBox)
+            {
+                return true;
+            }
+
+            current = VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
     private void CreateBoardTemplate_OnClick(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element || element.Tag is not string kind)
@@ -624,6 +1030,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
+        RememberUndoState();
         var board = CreateBoardTemplate(kind.ToLowerInvariant());
         Boards.Add(board);
         SelectedBoard = board;
@@ -632,6 +1039,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AddBoardTab_OnClick(object sender, RoutedEventArgs e)
     {
+        RememberUndoState();
         var board = CreateBoardTemplate("blank", $"새 탭 {Boards.Count + 1}");
         Boards.Add(board);
         SelectedBoard = board;
@@ -640,15 +1048,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void AddElementMenuItem_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedBoard is null || sender is not FrameworkElement element || element.Tag is not string kind)
+        if (sender is not FrameworkElement element || element.Tag is not string kind)
         {
             return;
         }
 
-        var designElement = CreateElementForCurrentBoard(kind);
-        SelectedBoard.Elements.Add(designElement);
-        AssignMarkerTexts(SelectedBoard.Elements);
-        SelectOnly(designElement, $"{designElement.MarkerText} {designElement.ElementType}을(를) 추가했습니다.");
+        AddElementToCurrentBoard(kind);
     }
 
     private void BoardSurface_OnMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -774,89 +1179,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DuplicateSelected_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedBoard is null || SelectedCount == 0)
-        {
-            StatusText = "복제할 항목을 먼저 선택하세요.";
-            return;
-        }
-
-        var clones = CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex).Select(item => item.CloneWithOffset(32)).ToList();
-        var zIndex = CurrentElements.Count == 0 ? 1 : CurrentElements.Max(item => item.ZIndex) + 1;
-        foreach (var clone in clones)
-        {
-            clone.ZIndex = zIndex++;
-            SelectedBoard.Elements.Add(clone);
-        }
-
-        AssignMarkerTexts(SelectedBoard.Elements);
-        foreach (var item in CurrentElements)
-        {
-            item.IsSelected = false;
-        }
-        foreach (var clone in clones)
-        {
-            clone.IsSelected = true;
-        }
-
-        SelectedElement = clones.LastOrDefault();
-        UpdateSelectionProperties($"{clones.Count}개 항목을 복제했습니다.");
+        DuplicateSelectedElements();
     }
 
     private void DeleteSelected_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedBoard is null || SelectedCount == 0)
-        {
-            StatusText = "삭제할 항목을 먼저 선택하세요.";
-            return;
-        }
-
-        var targets = CurrentElements.Where(item => item.IsSelected).ToList();
-        foreach (var item in targets)
-        {
-            SelectedBoard.Elements.Remove(item);
-        }
-
-        AssignMarkerTexts(SelectedBoard.Elements);
-        SelectOnly(null, $"{targets.Count}개 항목을 삭제했습니다.");
+        DeleteSelectedElements();
     }
 
     private void BringToFront_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedCount == 0)
-        {
-            StatusText = "정렬할 항목을 먼저 선택하세요.";
-            return;
-        }
-
-        var zIndex = CurrentElements.Max(item => item.ZIndex) + 1;
-        foreach (var item in CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex))
-        {
-            item.ZIndex = zIndex++;
-        }
-
-        StatusText = "선택 항목을 앞으로 보냈습니다.";
+        BringSelectionToFront();
     }
 
     private void SendToBack_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedCount == 0)
-        {
-            StatusText = "정렬할 항목을 먼저 선택하세요.";
-            return;
-        }
-
-        var selected = CurrentElements.Where(item => item.IsSelected).OrderBy(item => item.ZIndex).ToList();
-        var zIndex = CurrentElements.Min(item => item.ZIndex) - selected.Count;
-        foreach (var item in selected)
-        {
-            item.ZIndex = zIndex++;
-        }
-
-        StatusText = "선택 항목을 뒤로 보냈습니다.";
+        SendSelectionToBack();
     }
 
     private void BeginInteraction(InteractionMode mode, DesignElement item, FrameworkElement? source = null)
     {
+        _interactionSnapshot = CaptureWorkspaceSnapshot();
         _interactionMode = mode;
         _activeElement = item;
         _dragSource = source;
@@ -887,6 +1230,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Mouse.Capture(null);
         }
 
+        if (!string.IsNullOrWhiteSpace(_interactionSnapshot))
+        {
+            var currentSnapshot = CaptureWorkspaceSnapshot();
+            if (!string.Equals(currentSnapshot, _interactionSnapshot, StringComparison.Ordinal))
+            {
+                PushUndoSnapshot(_interactionSnapshot);
+            }
+        }
+
+        _interactionSnapshot = null;
         _dragSource = null;
         _activeElement = null;
         _interactionMode = InteractionMode.None;
@@ -1213,28 +1566,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        var file = new WorkspaceFile
-        {
-            SelectedIndex = SelectedBoard is null ? 0 : Boards.IndexOf(SelectedBoard),
-            Boards = Boards.Select(board => new BoardFile
-            {
-                Title = board.Title,
-                BoardKind = board.BoardKind,
-                ReferenceImageBase64 = board.ReferenceImageBase64,
-                Elements = board.Elements.Select(item => new ElementFile
-                {
-                    Kind = item.KindKey,
-                    Title = item.Title,
-                    Description = item.Description,
-                    Left = item.Left,
-                    Top = item.Top,
-                    Width = item.Width,
-                    Height = item.Height,
-                    ZIndex = item.ZIndex,
-                }).ToList(),
-            }).ToList(),
-        };
-
+        var file = CreateWorkspaceFile();
         File.WriteAllText(dialog.FileName, JsonSerializer.Serialize(file, _jsonOptions), Encoding.UTF8);
         StatusText = $"작업 파일 저장 완료: {dialog.FileName}";
     }
@@ -1254,28 +1586,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        Boards.Clear();
-        foreach (var boardFile in file.Boards)
-        {
-            var board = new BoardDocument { Title = boardFile.Title, BoardKind = boardFile.BoardKind, ReferenceImageBase64 = boardFile.ReferenceImageBase64 };
-            foreach (var elementFile in boardFile.Elements)
-            {
-                var item = CreateStyledElement(elementFile.Kind);
-                item.Title = elementFile.Title;
-                item.Description = elementFile.Description;
-                item.Left = elementFile.Left;
-                item.Top = elementFile.Top;
-                item.Width = elementFile.Width;
-                item.Height = elementFile.Height;
-                item.ZIndex = elementFile.ZIndex;
-                board.Elements.Add(item);
-            }
-            AssignMarkerTexts(board.Elements);
-            Boards.Add(board);
-        }
-
-        SelectedBoard = Boards[Math.Clamp(file.SelectedIndex, 0, Boards.Count - 1)];
-        StatusText = $"작업 파일을 불러왔습니다: {dialog.FileName}";
+        RememberUndoState();
+        ApplyWorkspaceFile(file, $"작업 파일을 불러왔습니다: {dialog.FileName}");
     }
 
     private void PasteReferenceImage_OnClick(object sender, RoutedEventArgs e)
@@ -1422,7 +1734,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly record struct GuideResult(double OffsetX, double OffsetY, double? VerticalGuideX, double? HorizontalGuideY) { public static GuideResult Empty => new(0, 0, null, null); }
     private sealed class WorkspaceFile { public List<BoardFile> Boards { get; set; } = []; public int SelectedIndex { get; set; } }
     private sealed class BoardFile { public string Title { get; set; } = string.Empty; public string BoardKind { get; set; } = "blank"; public string? ReferenceImageBase64 { get; set; } public List<ElementFile> Elements { get; set; } = []; }
-    private sealed class ElementFile { public string Kind { get; set; } = "note"; public string Title { get; set; } = string.Empty; public string Description { get; set; } = string.Empty; public double Left { get; set; } public double Top { get; set; } public double Width { get; set; } public double Height { get; set; } public int ZIndex { get; set; } }
+    private sealed class ElementFile { public string Kind { get; set; } = "note"; public string Title { get; set; } = string.Empty; public string Description { get; set; } = string.Empty; public double Left { get; set; } public double Top { get; set; } public double Width { get; set; } public double Height { get; set; } public int ZIndex { get; set; } public bool IsSelected { get; set; } }
 }
 
 

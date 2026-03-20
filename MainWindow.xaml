@@ -12,7 +12,8 @@
         MinWidth="1360"
         MinHeight="780"
         WindowStartupLocation="CenterScreen"
-        Background="#EAE3D6">
+        Background="#EAE3D6"
+        PreviewKeyDown="Window_OnPreviewKeyDown">
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibilityConverter" />
         <SolidColorBrush x:Key="PanelBrush" Color="#FFF9F2E8" />
@@ -156,11 +157,17 @@
                 <MenuItem Header="붙여넣은 이미지로 기초 도안 만들기" Click="GenerateDraftFromClipboard_OnClick" />
             </MenuItem>
             <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_정렬/편집">
-                <MenuItem Header="앞으로 보내기" Click="BringToFront_OnClick" />
-                <MenuItem Header="뒤로 보내기" Click="SendToBack_OnClick" />
+                <MenuItem Header="되돌리기" InputGestureText="Ctrl+Z" IsEnabled="{Binding CanUndo}" Click="Undo_OnClick" />
+                <MenuItem Header="다시하기" InputGestureText="Ctrl+Y" IsEnabled="{Binding CanRedo}" Click="Redo_OnClick" />
                 <Separator />
-                <MenuItem Header="복제" Click="DuplicateSelected_OnClick" />
-                <MenuItem Header="삭제" Click="DeleteSelected_OnClick" />
+                <MenuItem Header="복사" InputGestureText="Ctrl+C" IsEnabled="{Binding HasSelection}" Click="CopySelection_OnClick" />
+                <MenuItem Header="붙여넣기" InputGestureText="Ctrl+V" IsEnabled="{Binding CanPasteSelection}" Click="PasteSelection_OnClick" />
+                <Separator />
+                <MenuItem Header="앞으로 보내기" IsEnabled="{Binding HasSelection}" Click="BringToFront_OnClick" />
+                <MenuItem Header="뒤로 보내기" IsEnabled="{Binding HasSelection}" Click="SendToBack_OnClick" />
+                <Separator />
+                <MenuItem Header="복제" InputGestureText="Ctrl+D" IsEnabled="{Binding HasSelection}" Click="DuplicateSelected_OnClick" />
+                <MenuItem Header="삭제" InputGestureText="Del" IsEnabled="{Binding HasSelection}" Click="DeleteSelected_OnClick" />
             </MenuItem>
             <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_보기">
                 <MenuItem Header="그리드 표시" IsCheckable="True" IsChecked="{Binding ShowGrid, Mode=TwoWay}" />
@@ -206,6 +213,7 @@
                         <TextBlock TextWrapping="Wrap" Foreground="#6A5D4D" Text="1. Shift를 누른 채 칸을 클릭하면 여러 개를 함께 선택할 수 있습니다." />
                         <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#6A5D4D" Text="2. 선택된 칸은 같이 이동되고, 모서리 점을 끌면 같이 크기가 바뀝니다." />
                         <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#6A5D4D" Text="3. 기준선을 켜면 다른 칸이나 중앙선에 맞춰 정렬하기 쉽습니다." />
+                        <TextBlock Margin="0,6,0,0" TextWrapping="Wrap" Foreground="#6A5D4D" Text="4. Del 삭제, Ctrl+C 복사, Ctrl+V 붙여넣기, Ctrl+Z 되돌리기, Ctrl+Y 다시하기를 쓸 수 있습니다." />
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -257,7 +265,22 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type local:DesignElement}">
                                             <Grid>
-                                                <Border CornerRadius="18" Background="{Binding FillBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="2" Padding="16" PreviewMouseLeftButtonDown="DesignItem_OnPreviewMouseLeftButtonDown" PreviewMouseMove="DesignItem_OnPreviewMouseMove" PreviewMouseLeftButtonUp="DesignItem_OnPreviewMouseLeftButtonUp">
+                                                <Border CornerRadius="18" Background="{Binding FillBrush}" BorderBrush="{Binding BorderBrush}" BorderThickness="2" Padding="16" PreviewMouseLeftButtonDown="DesignItem_OnPreviewMouseLeftButtonDown" PreviewMouseMove="DesignItem_OnPreviewMouseMove" PreviewMouseLeftButtonUp="DesignItem_OnPreviewMouseLeftButtonUp" PreviewMouseRightButtonDown="DesignItem_OnPreviewMouseRightButtonDown">
+                                                    <Border.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="복사" InputGestureText="Ctrl+C" Click="CopySelection_OnClick" />
+                                                            <MenuItem Header="붙여넣기" InputGestureText="Ctrl+V" Click="PasteSelection_OnClick" />
+                                                            <Separator />
+                                                            <MenuItem Header="복제" Click="DuplicateSelected_OnClick" />
+                                                            <MenuItem Header="삭제" InputGestureText="Del" Click="DeleteSelected_OnClick" />
+                                                            <Separator />
+                                                            <MenuItem Header="앞으로 보내기" Click="BringToFront_OnClick" />
+                                                            <MenuItem Header="뒤로 보내기" Click="SendToBack_OnClick" />
+                                                            <Separator />
+                                                            <MenuItem Header="되돌리기" InputGestureText="Ctrl+Z" Click="Undo_OnClick" />
+                                                            <MenuItem Header="다시하기" InputGestureText="Ctrl+Y" Click="Redo_OnClick" />
+                                                        </ContextMenu>
+                                                    </Border.ContextMenu>
                                                     <Grid>
                                                         <Grid.RowDefinitions>
                                                             <RowDefinition Height="Auto" />
