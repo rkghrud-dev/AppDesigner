@@ -63,6 +63,51 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style x:Key="SecondaryToolButtonStyle" TargetType="Button">
+            <Setter Property="Padding" Value="12,10" />
+            <Setter Property="Background" Value="#F0E6D7" />
+            <Setter Property="BorderBrush" Value="#DDCBB2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style x:Key="PaletteExpanderStyle" TargetType="Expander">
+            <Setter Property="Margin" Value="0,0,0,12" />
+            <Setter Property="IsExpanded" Value="True" />
+        </Style>
+        <Style x:Key="PaletteCardButtonStyle" TargetType="Button">
+            <Setter Property="Margin" Value="0,0,0,10" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Background" Value="#FFFFFBF5" />
+            <Setter Property="BorderBrush" Value="#E1D5C2" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="VerticalContentAlignment" Value="Stretch" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RootBorder" Padding="{TemplateBinding Padding}" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="16">
+                            <ContentPresenter />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFF7F0E4" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#D4C4AE" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFF0E5D4" />
+                            </Trigger>
+                            <DataTrigger Binding="{Binding DataContext.IsSelected, RelativeSource={RelativeSource TemplatedParent}}" Value="True">
+                                <Setter TargetName="RootBorder" Property="Background" Value="#FFF2E2C9" />
+                                <Setter TargetName="RootBorder" Property="BorderBrush" Value="#C9923E" />
+                                <Setter TargetName="RootBorder" Property="BorderThickness" Value="2" />
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top" Padding="8,6" Background="#1F3A5B" Foreground="White">
@@ -252,43 +297,118 @@
                 </Grid>
             </Border>
             <Border Grid.Column="2" Padding="18" Background="{StaticResource PanelBrush}" BorderBrush="{StaticResource PanelBorderBrush}" BorderThickness="1" CornerRadius="20">
-                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                    <StackPanel>
-                        <TextBlock FontSize="24" FontWeight="Bold" Foreground="#262626" Text="속성" />
-                        <TextBlock Margin="0,8,0,0" Foreground="#6D6256" Text="{Binding SelectedElementSummary}" />
-                        <Border Margin="0,18,0,0" Padding="14" Background="#FFF2EADD" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="16">
-                            <TextBlock Foreground="#6B5E4E" TextWrapping="Wrap" Text="한 칸만 선택하면 이름과 설명을 고칠 수 있습니다. 여러 칸을 선택하면 같이 이동하고 같이 크기 조절됩니다. 참고 이미지는 아래에 붙여 넣을 수 있습니다." />
-                        </Border>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="참고 이미지" />
-                        <Border Padding="10" Background="#FFFDF9" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="14">
-                            <Grid>
-                                <Image MaxHeight="220" Stretch="Uniform" Source="{Binding CurrentReferenceImage}" Visibility="{Binding HasReferenceImage, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8B7E6D" Text="붙여넣은 참고 이미지가 여기에 보입니다." Visibility="{Binding HasReferenceImage, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}" />
-                            </Grid>
-                        </Border>
-                        <Button Margin="0,10,0,0" Padding="12,10" Background="#F0E6D7" BorderBrush="#DDCBB2" Click="PasteReferenceImage_OnClick" Content="클립보드 이미지 붙여넣기" />
-                        <Button Margin="0,10,0,0" Padding="12,10" Background="#F0E6D7" BorderBrush="#DDCBB2" Click="GenerateDraftFromClipboard_OnClick" Content="붙여넣은 이미지로 기초 도안 만들기" />
-                        <StackPanel Margin="0,14,0,0" IsEnabled="{Binding CanEditSingleElement}">
-                            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="한 칸 상세 편집" />
-                            <TextBlock Foreground="#5C5C5C" Text="이름" />
-                            <TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Title, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" />
-                            <TextBlock Margin="0,12,0,0" Foreground="#5C5C5C" Text="설명" />
-                            <TextBox Margin="0,6,0,0" Height="120" Padding="10,8" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding EditableElement.Description, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" />
-                            <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="위치와 크기" />
-                            <UniformGrid Columns="2">
-                                <StackPanel Margin="0,0,8,10"><TextBlock Foreground="#5C5C5C" Text="X" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Left, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
-                                <StackPanel Margin="8,0,0,10"><TextBlock Foreground="#5C5C5C" Text="Y" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Top, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
-                                <StackPanel Margin="0,0,8,10"><TextBlock Foreground="#5C5C5C" Text="너비" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Width, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
-                                <StackPanel Margin="8,0,0,10"><TextBlock Foreground="#5C5C5C" Text="높이" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Height, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
-                            </UniformGrid>
-                        </StackPanel>
-                        <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="선택 항목 작업" />
-                        <Button Margin="0,0,0,10" Padding="12,10" Background="#F0E6D7" BorderBrush="#DDCBB2" IsEnabled="{Binding HasSelection}" Click="DuplicateSelected_OnClick" Content="선택 항목 복제" />
-                        <Button Margin="0,0,0,10" Padding="12,10" Background="#F0E6D7" BorderBrush="#DDCBB2" IsEnabled="{Binding HasSelection}" Click="BringToFront_OnClick" Content="앞으로 보내기" />
-                        <Button Margin="0,0,0,10" Padding="12,10" Background="#F0E6D7" BorderBrush="#DDCBB2" IsEnabled="{Binding HasSelection}" Click="SendToBack_OnClick" Content="뒤로 보내기" />
-                        <Button Padding="12,10" Background="#F7D9D3" BorderBrush="#DFAAA0" IsEnabled="{Binding HasSelection}" Click="DeleteSelected_OnClick" Content="선택 항목 삭제" />
-                    </StackPanel>
-                </ScrollViewer>
+                <TabControl Background="Transparent" BorderThickness="0">
+                    <TabItem Header="구성요소">
+                        <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                            <StackPanel>
+                                <TextBlock FontSize="24" FontWeight="Bold" Foreground="#262626" Text="구성요소" />
+                                <TextBlock Margin="0,8,0,0" Foreground="#6D6256" Text="아이콘과 한글 이름을 보고 바로 추가하는 UI 블록 팔레트입니다." />
+                                <Border Margin="0,18,0,16" Padding="14" Background="#FFF2EADD" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="16">
+                                    <TextBlock Foreground="#6B5E4E" TextWrapping="Wrap" Text="카드를 누르면 중앙 보드에 바로 추가됩니다. 같은 종류를 계속 넣고 싶으면 같은 카드를 반복해서 누르면 됩니다." />
+                                </Border>
+                                <ItemsControl ItemsSource="{Binding PaletteCategories}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type local:UiComponentCategory}">
+                                            <Expander Style="{StaticResource PaletteExpanderStyle}">
+                                                <Expander.Header>
+                                                    <Border Padding="12,10" Background="#FFF7F0E6" BorderBrush="#E1D5C2" BorderThickness="1" CornerRadius="14">
+                                                        <DockPanel>
+                                                            <TextBlock FontSize="13" FontWeight="Bold" Foreground="#5B4837" Text="{Binding Name}" />
+                                                            <TextBlock DockPanel.Dock="Right" Foreground="#8B7A67" Text="{Binding Items.Count, StringFormat={}{0}개}" />
+                                                        </DockPanel>
+                                                    </Border>
+                                                </Expander.Header>
+                                                <Border Margin="0,10,0,0" Background="Transparent">
+                                                    <ItemsControl ItemsSource="{Binding Items}">
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate DataType="{x:Type local:UiComponentItem}">
+                                                                <Button Style="{StaticResource PaletteCardButtonStyle}" Click="PaletteComponent_OnClick">
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="54" />
+                                                                            <ColumnDefinition Width="*" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <Border Width="42" Height="42" HorizontalAlignment="Left" VerticalAlignment="Top" Background="#FFF7F0E6" BorderBrush="#E0D2BE" BorderThickness="1" CornerRadius="12">
+                                                                            <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="20" FontWeight="Bold" Foreground="#5B4837" Text="{Binding IconText}" />
+                                                                        </Border>
+                                                                        <StackPanel Grid.Column="1" Margin="12,0,0,0">
+                                                                            <TextBlock FontSize="13" FontWeight="SemiBold" Foreground="#27221D" Text="{Binding Name}" />
+                                                                            <TextBlock Margin="0,2,0,0" Foreground="#7A6A58" Text="{Binding DisplayName}" />
+                                                                            <TextBlock Margin="0,4,0,0" Foreground="#5F5A54" TextWrapping="Wrap" Text="{Binding Description}" />
+                                                                        </StackPanel>
+                                                                    </Grid>
+                                                                </Button>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </Border>
+                                            </Expander>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                    <TabItem Header="속성">
+                        <ScrollViewer Margin="0,12,0,0" VerticalScrollBarVisibility="Auto">
+                            <StackPanel>
+                                <TextBlock FontSize="24" FontWeight="Bold" Foreground="#262626" Text="속성" />
+                                <TextBlock Margin="0,8,0,0" Foreground="#6D6256" Text="{Binding SelectedElementSummary}" />
+                                <Border Margin="0,18,0,0" Padding="14" Background="#FFF2EADD" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="16" Visibility="{Binding HasNoSelection, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Foreground="#6B5E4E" TextWrapping="Wrap" Text="보드에서 칸 하나를 클릭하면 여기에서 이름, 설명, 위치, 크기를 바로 바꿀 수 있습니다." />
+                                </Border>
+                                <Border Margin="0,18,0,0" Padding="14" Background="#FFF2EADD" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="16" Visibility="{Binding HasMultipleSelection, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Foreground="#6B5E4E" TextWrapping="Wrap" Text="여러 칸이 선택되어 있습니다. 지금은 함께 이동하고 크기 조절할 수 있고, 개별 이름 편집은 한 칸만 선택했을 때 가능합니다." />
+                                </Border>
+                                <StackPanel Margin="0,14,0,0" Visibility="{Binding CanEditSingleElement, Converter={StaticResource BoolToVisibilityConverter}}">
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="한 칸 상세 편집" />
+                                    <TextBlock Foreground="#5C5C5C" Text="구성요소 종류" />
+                                    <TextBox Margin="0,6,0,0" Padding="10,8" IsReadOnly="True" Background="#FFF7F2EA" BorderBrush="#E1D4C2" Text="{Binding EditableElement.ElementType, TargetNullValue=''}" />
+                                    <TextBlock Margin="0,12,0,0" Foreground="#5C5C5C" Text="이름" />
+                                    <TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Title, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" />
+                                    <TextBlock Margin="0,12,0,0" Foreground="#5C5C5C" Text="설명" />
+                                    <TextBox Margin="0,6,0,0" Height="120" Padding="10,8" AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Text="{Binding EditableElement.Description, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" />
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="위치와 크기" />
+                                    <UniformGrid Columns="2">
+                                        <StackPanel Margin="0,0,8,10"><TextBlock Foreground="#5C5C5C" Text="X" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Left, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
+                                        <StackPanel Margin="8,0,0,10"><TextBlock Foreground="#5C5C5C" Text="Y" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Top, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
+                                        <StackPanel Margin="0,0,8,10"><TextBlock Foreground="#5C5C5C" Text="너비" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Width, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
+                                        <StackPanel Margin="8,0,0,10"><TextBlock Foreground="#5C5C5C" Text="높이" /><TextBox Margin="0,6,0,0" Padding="10,8" Text="{Binding EditableElement.Height, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}" /></StackPanel>
+                                    </UniformGrid>
+                                    <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="확장 예정" />
+                                    <Border Padding="12" Background="#FFFFFBF5" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="14">
+                                        <TextBlock Foreground="#6B5E4E" TextWrapping="Wrap" Text="색상, 태그, 잠금 여부는 이 자리에서 이어서 추가할 수 있게 구조를 나눠 두었습니다." />
+                                    </Border>
+                                </StackPanel>
+                                <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="참고 이미지" />
+                                <Border Padding="10" Background="#FFFDF9" BorderBrush="#E4D6C0" BorderThickness="1" CornerRadius="14">
+                                    <Grid>
+                                        <Image MaxHeight="220" Stretch="Uniform" Source="{Binding CurrentReferenceImage}" Visibility="{Binding HasReferenceImage, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <TextBlock HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#8B7E6D" Text="붙여넣은 참고 이미지가 여기에 보입니다.">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Visible" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding HasReferenceImage}" Value="True">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </Grid>
+                                </Border>
+                                <Button Margin="0,10,0,0" Style="{StaticResource SecondaryToolButtonStyle}" Click="PasteReferenceImage_OnClick" Content="클립보드 이미지 붙여넣기" />
+                                <Button Margin="0,10,0,0" Style="{StaticResource SecondaryToolButtonStyle}" Click="GenerateDraftFromClipboard_OnClick" Content="붙여넣은 이미지로 기초 도안 만들기" />
+                                <TextBlock Style="{StaticResource SectionHeaderStyle}" Text="선택 항목 작업" />
+                                <Button Margin="0,0,0,10" Style="{StaticResource SecondaryToolButtonStyle}" IsEnabled="{Binding HasSelection}" Click="DuplicateSelected_OnClick" Content="선택 항목 복제" />
+                                <Button Margin="0,0,0,10" Style="{StaticResource SecondaryToolButtonStyle}" IsEnabled="{Binding HasSelection}" Click="BringToFront_OnClick" Content="앞으로 보내기" />
+                                <Button Margin="0,0,0,10" Style="{StaticResource SecondaryToolButtonStyle}" IsEnabled="{Binding HasSelection}" Click="SendToBack_OnClick" Content="뒤로 보내기" />
+                                <Button Padding="12,10" Background="#F7D9D3" BorderBrush="#DFAAA0" BorderThickness="1" Cursor="Hand" IsEnabled="{Binding HasSelection}" Click="DeleteSelected_OnClick" Content="선택 항목 삭제" />
+                            </StackPanel>
+                        </ScrollViewer>
+                    </TabItem>
+                </TabControl>
             </Border>
         </Grid>
     </DockPanel>

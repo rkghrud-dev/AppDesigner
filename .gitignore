@@ -1,12 +1,6 @@
 bin/
 obj/
-buildcheck/
+buildcheck*/
 .vs/
 *.user
 *.suo
-
-buildcheck_menufix/
-
-
-buildcheck_ribbon/
-

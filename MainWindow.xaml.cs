@@ -29,6 +29,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private BoardDocument? _selectedBoard;
     private DesignElement? _selectedElement;
+    private UiComponentItem? _selectedPaletteItem;
     private DesignElement? _activeElement;
     private FrameworkElement? _dragSource;
     private Point _interactionStartPoint;
@@ -44,6 +45,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         InitializeComponent();
         DataContext = this;
+        InitializePalette();
         var board = CreateBoardTemplate("desktop");
         Boards.Add(board);
         SelectedBoard = board;
@@ -53,6 +55,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public ObservableCollection<BoardDocument> Boards { get; } = new();
+
+    public ObservableCollection<UiComponentCategory> PaletteCategories { get; } = new();
 
     public BoardDocument? SelectedBoard
     {
@@ -165,7 +169,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public bool CanEditSingleElement => SelectedCount == 1;
 
+    public bool HasNoSelection => SelectedCount == 0;
+
+    public bool HasMultipleSelection => SelectedCount > 1;
+
     public int SelectedCount => CurrentElements.Count(item => item.IsSelected);
+
+    public UiComponentItem? SelectedPaletteItem
+    {
+        get => _selectedPaletteItem;
+        private set => SetField(ref _selectedPaletteItem, value);
+    }
 
     public string SelectedElementSummary
     {
@@ -251,8 +265,187 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         element.Description = description;
         return element;
     }
+    private void InitializePalette()
+    {
+        PaletteCategories.Clear();
+
+        AddPaletteCategory("창 기본 구조",
+            new UiComponentItem { Key = "title_bar", Name = "타이틀 바", DisplayName = "창 제목줄", Description = "창 상단 제목과 아이콘이 놓이는 영역입니다.", Category = "창 기본 구조", IconText = "▔" },
+            new UiComponentItem { Key = "window_buttons", Name = "윈도우 버튼", DisplayName = "최소/최대/닫기", Description = "창 오른쪽 위 제어 버튼 묶음입니다.", Category = "창 기본 구조", IconText = "— □ ×" },
+            new UiComponentItem { Key = "menu_bar", Name = "메뉴 바", DisplayName = "메뉴 줄", Description = "파일, 편집, 보기 같은 상단 메뉴 줄입니다.", Category = "창 기본 구조", IconText = "≡" },
+            new UiComponentItem { Key = "toolbar", Name = "툴바", DisplayName = "기능 버튼 줄", Description = "자주 쓰는 기능 버튼을 가로로 놓는 영역입니다.", Category = "창 기본 구조", IconText = "▤" },
+            new UiComponentItem { Key = "status_bar", Name = "상태 바", DisplayName = "하단 상태줄", Description = "진행 상태나 안내 문구를 보여 주는 하단 줄입니다.", Category = "창 기본 구조", IconText = "▁" });
+
+        AddPaletteCategory("상단 명령 구조",
+            new UiComponentItem { Key = "quick_access", Name = "빠른 실행 도구 모음", DisplayName = "자주 쓰는 아이콘 줄", Description = "저장, 실행취소처럼 자주 쓰는 아이콘을 모아 둡니다.", Category = "상단 명령 구조", IconText = "◦◦◦" },
+            new UiComponentItem { Key = "ribbon", Name = "리본", DisplayName = "큰 명령 묶음", Description = "엑셀처럼 그룹별 큰 명령 버튼이 들어가는 상단 영역입니다.", Category = "상단 명령 구조", IconText = "▤" },
+            new UiComponentItem { Key = "tab_bar", Name = "탭 바", DisplayName = "화면 전환 탭", Description = "여러 화면이나 문서를 탭으로 바꾸는 줄입니다.", Category = "상단 명령 구조", IconText = "▣" },
+            new UiComponentItem { Key = "search_bar", Name = "검색 바", DisplayName = "검색 입력줄", Description = "검색어 입력과 필터를 두는 상단 검색 영역입니다.", Category = "상단 명령 구조", IconText = "⌕" });
+
+        AddPaletteCategory("탐색 구조",
+            new UiComponentItem { Key = "sidebar", Name = "사이드바", DisplayName = "세로 메뉴", Description = "화면 한쪽에 붙는 세로 탐색 영역입니다.", Category = "탐색 구조", IconText = "▌" },
+            new UiComponentItem { Key = "navigation_panel", Name = "내비게이션 패널", DisplayName = "화면 이동 패널", Description = "항목 이동과 위치 안내를 담는 보조 패널입니다.", Category = "탐색 구조", IconText = "☰" },
+            new UiComponentItem { Key = "tree_view", Name = "트리 뷰", DisplayName = "계층 목록", Description = "폴더나 카테고리처럼 단계 구조를 보여 주는 목록입니다.", Category = "탐색 구조", IconText = "├" });
+
+        AddPaletteCategory("본문/작업 구조",
+            new UiComponentItem { Key = "main_content", Name = "메인 콘텐츠 영역", DisplayName = "주 작업 화면", Description = "가장 큰 본문 작업 공간입니다.", Category = "본문/작업 구조", IconText = "▭" },
+            new UiComponentItem { Key = "panel", Name = "패널", DisplayName = "보조 작업 패널", Description = "본문 안에서 기능이나 정보를 묶는 사각 영역입니다.", Category = "본문/작업 구조", IconText = "◫" },
+            new UiComponentItem { Key = "group_box", Name = "그룹 박스", DisplayName = "설정 묶음", Description = "관련 옵션을 한 덩어리로 묶는 그룹입니다.", Category = "본문/작업 구조", IconText = "▢" },
+            new UiComponentItem { Key = "card", Name = "카드", DisplayName = "정보 카드", Description = "작은 정보 블록이나 요약 항목을 보여 줍니다.", Category = "본문/작업 구조", IconText = "◪" },
+            new UiComponentItem { Key = "list_view", Name = "리스트 뷰", DisplayName = "목록 화면", Description = "세로 목록 항목을 보여 주는 구조입니다.", Category = "본문/작업 구조", IconText = "☰" },
+            new UiComponentItem { Key = "table_grid", Name = "테이블/그리드", DisplayName = "표 형식 화면", Description = "행과 열로 데이터를 보여 주는 표 영역입니다.", Category = "본문/작업 구조", IconText = "▦" });
+
+        AddPaletteCategory("입력 요소",
+            new UiComponentItem { Key = "button", Name = "버튼", DisplayName = "실행 버튼", Description = "클릭해서 동작을 실행하는 기본 버튼입니다.", Category = "입력 요소", IconText = "▭" },
+            new UiComponentItem { Key = "text_box", Name = "텍스트 박스", DisplayName = "입력칸", Description = "문자 입력을 받는 한 줄 입력칸입니다.", Category = "입력 요소", IconText = "⌨" },
+            new UiComponentItem { Key = "check_box", Name = "체크박스", DisplayName = "선택 상자", Description = "켜고 끄는 옵션을 표시하는 선택 상자입니다.", Category = "입력 요소", IconText = "☑" },
+            new UiComponentItem { Key = "radio_button", Name = "라디오 버튼", DisplayName = "단일 선택", Description = "여러 항목 중 하나를 고르는 선택점입니다.", Category = "입력 요소", IconText = "◉" },
+            new UiComponentItem { Key = "dropdown", Name = "드롭다운", DisplayName = "펼침 목록", Description = "아래로 펼쳐 선택하는 목록입니다.", Category = "입력 요소", IconText = "▾" },
+            new UiComponentItem { Key = "combo_box", Name = "콤보박스", DisplayName = "입력 + 목록", Description = "입력과 목록 선택을 함께 쓰는 칸입니다.", Category = "입력 요소", IconText = "▾" },
+            new UiComponentItem { Key = "toggle_switch", Name = "토글 스위치", DisplayName = "켜기/끄기", Description = "상태를 즉시 바꾸는 스위치입니다.", Category = "입력 요소", IconText = "◐" },
+            new UiComponentItem { Key = "slider", Name = "슬라이더", DisplayName = "값 조절 막대", Description = "범위 값을 밀어서 조절하는 막대입니다.", Category = "입력 요소", IconText = "━○" });
+
+        AddPaletteCategory("팝업/보조 요소",
+            new UiComponentItem { Key = "dialog", Name = "다이얼로그", DisplayName = "대화 상자", Description = "확인, 설정, 안내를 위해 띄우는 창입니다.", Category = "팝업/보조 요소", IconText = "◻" },
+            new UiComponentItem { Key = "modal", Name = "모달", DisplayName = "집중 팝업", Description = "배경을 막고 현재 작업에 집중시키는 팝업입니다.", Category = "팝업/보조 요소", IconText = "⬒" },
+            new UiComponentItem { Key = "context_menu", Name = "컨텍스트 메뉴", DisplayName = "우클릭 메뉴", Description = "위치에 따라 뜨는 빠른 명령 메뉴입니다.", Category = "팝업/보조 요소", IconText = "⋮" },
+            new UiComponentItem { Key = "tooltip", Name = "툴팁", DisplayName = "짧은 도움말", Description = "마우스를 올렸을 때 뜨는 짧은 설명입니다.", Category = "팝업/보조 요소", IconText = "?" },
+            new UiComponentItem { Key = "toast", Name = "토스트 알림", DisplayName = "잠깐 뜨는 알림", Description = "잠시 나타났다 사라지는 작은 알림입니다.", Category = "팝업/보조 요소", IconText = "◔" });
+    }
+
+    private void AddPaletteCategory(string name, params UiComponentItem[] items)
+    {
+        PaletteCategories.Add(new UiComponentCategory
+        {
+            Name = name,
+            Items = new ObservableCollection<UiComponentItem>(items),
+        });
+    }
+
+    private void PaletteComponent_OnClick(object sender, RoutedEventArgs e)
+    {
+        if (SelectedBoard is null)
+        {
+            StatusText = "보드를 먼저 만든 뒤 구성요소를 추가하세요.";
+            return;
+        }
+
+        if (sender is not FrameworkElement { DataContext: UiComponentItem item })
+        {
+            return;
+        }
+
+        SetSelectedPaletteItem(item);
+
+        var designElement = CreateElementForCurrentBoard(item.Key);
+        SelectedBoard.Elements.Add(designElement);
+        AssignMarkerTexts(SelectedBoard.Elements);
+        SelectOnly(designElement, $"{designElement.MarkerText} {designElement.ElementType}을(를) 추가했습니다.");
+    }
+
+    private void SetSelectedPaletteItem(UiComponentItem? item)
+    {
+        if (SelectedPaletteItem is not null)
+        {
+            SelectedPaletteItem.IsSelected = false;
+        }
+
+        SelectedPaletteItem = item;
+
+        if (SelectedPaletteItem is not null)
+        {
+            SelectedPaletteItem.IsSelected = true;
+        }
+    }
+
+    private bool TryGetPaletteItem(string key, out UiComponentItem? item)
+    {
+        item = PaletteCategories
+            .SelectMany(category => category.Items)
+            .FirstOrDefault(candidate => string.Equals(candidate.Key, key, StringComparison.OrdinalIgnoreCase));
+
+        return item is not null;
+    }
+
+    private DesignElement CreatePaletteElement(UiComponentItem item)
+    {
+        var (width, height) = GetPaletteDefaultSize(item.Key);
+        var (fillBrush, accentBrush, borderBrush) = GetPaletteBrushes(item.Category);
+
+        return new DesignElement
+        {
+            KindKey = item.Key,
+            ElementType = item.Name,
+            PreviewText = string.IsNullOrWhiteSpace(item.IconText) ? item.DisplayName : item.IconText,
+            Title = item.DisplayName,
+            Description = item.Description,
+            Width = width,
+            Height = height,
+            FillBrush = fillBrush,
+            AccentBrush = accentBrush,
+            BorderBrush = borderBrush,
+        };
+    }
+
+    private static (double Width, double Height) GetPaletteDefaultSize(string key)
+    {
+        return key.ToLowerInvariant() switch
+        {
+            "title_bar" => (640, 60),
+            "window_buttons" => (240, 60),
+            "menu_bar" => (720, 68),
+            "toolbar" => (760, 78),
+            "status_bar" => (720, 52),
+            "quick_access" => (280, 56),
+            "ribbon" => (980, 170),
+            "tab_bar" => (520, 72),
+            "search_bar" => (340, 72),
+            "sidebar" => (240, 440),
+            "navigation_panel" => (280, 440),
+            "tree_view" => (280, 400),
+            "main_content" => (640, 420),
+            "panel" => (420, 250),
+            "group_box" => (360, 220),
+            "card" => (280, 180),
+            "list_view" => (360, 240),
+            "table_grid" => (520, 260),
+            "button" => (220, 92),
+            "text_box" => (280, 92),
+            "check_box" => (240, 92),
+            "radio_button" => (240, 92),
+            "dropdown" => (250, 92),
+            "combo_box" => (280, 92),
+            "toggle_switch" => (220, 92),
+            "slider" => (280, 92),
+            "dialog" => (380, 210),
+            "modal" => (460, 260),
+            "context_menu" => (220, 220),
+            "tooltip" => (240, 110),
+            "toast" => (320, 120),
+            _ => (340, 180),
+        };
+    }
+
+    private static (SolidColorBrush FillBrush, SolidColorBrush AccentBrush, SolidColorBrush BorderBrush) GetPaletteBrushes(string category)
+    {
+        return category switch
+        {
+            "창 기본 구조" => (CreateBrush("#FFF8F3EA"), CreateBrush("#7A6047"), CreateBrush("#D8C8B1")),
+            "상단 명령 구조" => (CreateBrush("#FFF3F7FB"), CreateBrush("#3E688A"), CreateBrush("#C3D5E2")),
+            "탐색 구조" => (CreateBrush("#FFF1F8F4"), CreateBrush("#2F7460"), CreateBrush("#B8DBCC")),
+            "본문/작업 구조" => (CreateBrush("#FFF7F5F1"), CreateBrush("#646C76"), CreateBrush("#CDD3D9")),
+            "입력 요소" => (CreateBrush("#FFF2F8F1"), CreateBrush("#467A57"), CreateBrush("#BFD9C4")),
+            "팝업/보조 요소" => (CreateBrush("#FFF9F2EE"), CreateBrush("#A05A48"), CreateBrush("#E1C3B8")),
+            _ => (CreateBrush("#FFFFF8DB"), CreateBrush("#8E6B13"), CreateBrush("#E7D37F")),
+        };
+    }
     private DesignElement CreateStyledElement(string kind)
     {
+        if (TryGetPaletteItem(kind, out var paletteItem) && paletteItem is not null)
+        {
+            return CreatePaletteElement(paletteItem);
+        }
+
         return kind.ToLowerInvariant() switch
         {
             "dialog" => new DesignElement
@@ -735,6 +928,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         OnPropertyChanged(nameof(SelectedCount));
         OnPropertyChanged(nameof(HasSelection));
         OnPropertyChanged(nameof(CanEditSingleElement));
+        OnPropertyChanged(nameof(HasNoSelection));
+        OnPropertyChanged(nameof(HasMultipleSelection));
         OnPropertyChanged(nameof(EditableElement));
         OnPropertyChanged(nameof(SelectedElementSummary));
 
