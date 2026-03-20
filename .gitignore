@@ -4,3 +4,6 @@ buildcheck/
 .vs/
 *.user
 *.suo
+
+buildcheck_menufix/
+

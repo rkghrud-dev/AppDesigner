@@ -66,7 +66,17 @@
     </Window.Resources>
     <DockPanel LastChildFill="True">
         <Menu DockPanel.Dock="Top" Padding="8,6" Background="#1F3A5B" Foreground="White">
-            <MenuItem Header="_파일">
+            <Menu.Resources>
+                <Style TargetType="{x:Type MenuItem}">
+                    <Setter Property="Foreground" Value="#2B2B2B" />
+                    <Setter Property="Background" Value="#FFF9F2E8" />
+                </Style>
+                <Style x:Key="TopMenuItemStyle" TargetType="{x:Type MenuItem}">
+                    <Setter Property="Foreground" Value="White" />
+                    <Setter Property="Background" Value="Transparent" />
+                </Style>
+            </Menu.Resources>
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_파일">
                 <MenuItem Header="새로 만들기">
                     <MenuItem Header="데스크탑 앱" Tag="desktop" Click="CreateBoardTemplate_OnClick" />
                     <MenuItem Header="렌딩 페이지" Tag="landing" Click="CreateBoardTemplate_OnClick" />
@@ -82,7 +92,7 @@
                 <Separator />
                 <MenuItem Header="종료" Click="Exit_OnClick" />
             </MenuItem>
-            <MenuItem Header="_구성요소 추가">
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_구성요소 추가">
                 <MenuItem Header="대화창" Tag="dialog" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="작은 알림창" Tag="popup" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="버튼 묶음" Tag="buttons" Click="AddElementMenuItem_OnClick" />
@@ -92,23 +102,23 @@
                 <MenuItem Header="랜딩 첫 화면" Tag="hero" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="메모" Tag="note" Click="AddElementMenuItem_OnClick" />
             </MenuItem>
-            <MenuItem Header="_특수 기능">
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_특수 기능">
                 <MenuItem Header="클립보드 이미지 붙여넣기" Click="PasteReferenceImage_OnClick" />
                 <MenuItem Header="붙여넣은 이미지로 기초 도안 만들기" Click="GenerateDraftFromClipboard_OnClick" />
             </MenuItem>
-            <MenuItem Header="_정렬/편집">
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_정렬/편집">
                 <MenuItem Header="앞으로 보내기" Click="BringToFront_OnClick" />
                 <MenuItem Header="뒤로 보내기" Click="SendToBack_OnClick" />
                 <Separator />
                 <MenuItem Header="복제" Click="DuplicateSelected_OnClick" />
                 <MenuItem Header="삭제" Click="DeleteSelected_OnClick" />
             </MenuItem>
-            <MenuItem Header="_보기">
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_보기">
                 <MenuItem Header="그리드 표시" IsCheckable="True" IsChecked="{Binding ShowGrid, Mode=TwoWay}" />
                 <MenuItem Header="격자 스냅" IsCheckable="True" IsChecked="{Binding SnapToGrid, Mode=TwoWay}" />
                 <MenuItem Header="정렬 기준선" IsCheckable="True" IsChecked="{Binding ShowGuides, Mode=TwoWay}" />
             </MenuItem>
-            <MenuItem Header="_도움말" Click="About_OnClick" />
+            <MenuItem Style="{StaticResource TopMenuItemStyle}" Header="_도움말" Click="About_OnClick" />
         </Menu>
         <StatusBar DockPanel.Dock="Bottom" Background="#FFF8EF">
             <StatusBarItem><TextBlock Text="{Binding StatusText}" /></StatusBarItem>
@@ -279,3 +289,4 @@
         </Grid>
     </DockPanel>
 </Window>
+
