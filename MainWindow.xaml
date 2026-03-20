@@ -97,6 +97,10 @@
                 <MenuItem Header="작은 알림창" Tag="popup" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="버튼 묶음" Tag="buttons" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="탭 화면" Tag="tabs" Click="AddElementMenuItem_OnClick" />
+                <MenuItem Header="리본 탭줄" Tag="ribbontabs" Click="AddElementMenuItem_OnClick" />
+                <MenuItem Header="리본 명령영역" Tag="ribbonarea" Click="AddElementMenuItem_OnClick" />
+                <MenuItem Header="리본 그룹" Tag="ribbongroup" Click="AddElementMenuItem_OnClick" />
+                <MenuItem Header="빠른 실행줄" Tag="quickbar" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="입력 폼" Tag="form" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="화면 구역" Tag="section" Click="AddElementMenuItem_OnClick" />
                 <MenuItem Header="랜딩 첫 화면" Tag="hero" Click="AddElementMenuItem_OnClick" />
@@ -289,4 +293,5 @@
         </Grid>
     </DockPanel>
 </Window>
+
 

@@ -196,11 +196,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         switch (kind)
         {
             case "desktop":
-                board.Elements.Add(BuildElement("section", 60, 60, 260, 680, "왼쪽 메뉴", "프로그램 메뉴와 상태 요약을 두는 세로 영역입니다."));
-                board.Elements.Add(BuildElement("dialog", 360, 60, 760, 120, "상단 도구막대", "페이지 제목, 검색, 주요 실행 버튼을 두는 윗줄입니다."));
-                board.Elements.Add(BuildElement("tabs", 360, 220, 820, 300, "주요 작업 화면", "탭으로 화면을 나누고 가운데 큰 작업 영역을 배치합니다."));
-                board.Elements.Add(BuildElement("buttons", 360, 560, 520, 150, "하단 실행 버튼", "저장, 취소, 적용 버튼을 모아 두는 구역입니다."));
-                board.Elements.Add(BuildElement("note", 1210, 220, 260, 180, "설계 메모", "주의사항이나 연결 구조를 적어 두는 보조 메모입니다."));
+                board.Elements.Add(BuildElement("quickbar", 60, 40, 280, 54, "빠른 실행줄", "저장, 실행취소, 다시실행 같은 자주 쓰는 작은 버튼 줄입니다."));
+                board.Elements.Add(BuildElement("ribbontabs", 360, 40, 760, 58, "리본 탭줄", "파일, 홈, 삽입, 보기처럼 탭 제목이 가로로 놓이는 줄입니다."));
+                board.Elements.Add(BuildElement("ribbonarea", 360, 110, 1120, 170, "리본 명령영역", "엑셀의 클립보드, 글꼴, 맞춤 같은 큰 명령 영역입니다."));
+                board.Elements.Add(BuildElement("ribbongroup", 380, 138, 220, 118, "클립보드 그룹", "붙여넣기, 잘라내기, 복사처럼 하나의 그룹을 따로 설계합니다."));
+                board.Elements.Add(BuildElement("ribbongroup", 620, 138, 230, 118, "글꼴 그룹", "글꼴, 크기, 굵게, 색상처럼 글자 관련 묶음입니다."));
+                board.Elements.Add(BuildElement("ribbongroup", 870, 138, 240, 118, "맞춤 그룹", "가운데 맞춤, 줄바꿈, 병합처럼 정렬 관련 묶음입니다."));
+                board.Elements.Add(BuildElement("section", 60, 310, 260, 520, "왼쪽 메뉴", "프로그램 메뉴와 상태 요약을 두는 세로 영역입니다."));
+                board.Elements.Add(BuildElement("tabs", 360, 330, 820, 300, "주요 작업 화면", "탭으로 화면을 나누고 가운데 큰 작업 영역을 배치합니다."));
+                board.Elements.Add(BuildElement("buttons", 360, 670, 520, 150, "하단 실행 버튼", "저장, 취소, 적용 버튼을 모아 두는 구역입니다."));
+                board.Elements.Add(BuildElement("note", 1210, 330, 260, 180, "설계 메모", "주의사항이나 연결 구조를 적어 두는 보조 메모입니다."));
                 break;
             case "landing":
                 board.Elements.Add(BuildElement("hero", 70, 70, 1180, 260, "첫 화면 히어로", "대표 문구, 큰 버튼, 대표 이미지를 배치하는 핵심 영역입니다."));
@@ -301,6 +306,58 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 FillBrush = CreateBrush("#FFF9F4EE"),
                 AccentBrush = CreateBrush("#A14D3D"),
                 BorderBrush = CreateBrush("#E5B8AF"),
+            },
+            "ribbontabs" => new DesignElement
+            {
+                KindKey = "ribbontabs",
+                ElementType = "리본 탭줄",
+                PreviewText = "[파일][홈][삽입]",
+                Title = "리본 탭줄",
+                Description = "엑셀처럼 상단에서 탭 이름이 가로로 나열되는 줄입니다.",
+                Width = 760,
+                Height = 58,
+                FillBrush = CreateBrush("#FFF8F4EF"),
+                AccentBrush = CreateBrush("#7D6450"),
+                BorderBrush = CreateBrush("#D9C9B4"),
+            },
+            "ribbonarea" => new DesignElement
+            {
+                KindKey = "ribbonarea",
+                ElementType = "리본 명령영역",
+                PreviewText = "[클립보드][글꼴][맞춤]",
+                Title = "리본 명령영역",
+                Description = "탭 아래에 붙어 있는 큰 명령 버튼 모음 영역입니다.",
+                Width = 980,
+                Height = 170,
+                FillBrush = CreateBrush("#FFF7F7F4"),
+                AccentBrush = CreateBrush("#5F7A9A"),
+                BorderBrush = CreateBrush("#CCD6E1"),
+            },
+            "ribbongroup" => new DesignElement
+            {
+                KindKey = "ribbongroup",
+                ElementType = "리본 그룹",
+                PreviewText = "[붙여넣기][복사]",
+                Title = "리본 그룹",
+                Description = "리본 안에서 클립보드, 글꼴, 맞춤처럼 한 묶음씩 나누는 그룹입니다.",
+                Width = 220,
+                Height = 118,
+                FillBrush = CreateBrush("#FFFDFBF8"),
+                AccentBrush = CreateBrush("#3E6C87"),
+                BorderBrush = CreateBrush("#D8E1E8"),
+            },
+            "quickbar" => new DesignElement
+            {
+                KindKey = "quickbar",
+                ElementType = "빠른 실행줄",
+                PreviewText = "[저장][실행취소]",
+                Title = "빠른 실행줄",
+                Description = "창 맨 위에서 자주 쓰는 아이콘 버튼들을 모아두는 작은 줄입니다.",
+                Width = 280,
+                Height = 54,
+                FillBrush = CreateBrush("#FFF4F8FB"),
+                AccentBrush = CreateBrush("#3A5F7E"),
+                BorderBrush = CreateBrush("#C9D7E4"),
             },
             "form" => new DesignElement
             {
@@ -1172,5 +1229,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private sealed class BoardFile { public string Title { get; set; } = string.Empty; public string BoardKind { get; set; } = "blank"; public string? ReferenceImageBase64 { get; set; } public List<ElementFile> Elements { get; set; } = []; }
     private sealed class ElementFile { public string Kind { get; set; } = "note"; public string Title { get; set; } = string.Empty; public string Description { get; set; } = string.Empty; public double Left { get; set; } public double Top { get; set; } public double Width { get; set; } public double Height { get; set; } public int ZIndex { get; set; } }
 }
+
 
 
